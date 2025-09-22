@@ -103,21 +103,50 @@ namespace ShareX.ScreenCaptureLib
             borderRectangle = regionRectangle.Offset(1);
             borderRectangle0Based = new Rectangle(0, 0, borderRectangle.Width, borderRectangle.Height);
 
+            // 获取当前屏幕的工作区域
+            Screen currentScreen = Screen.FromRectangle(borderRectangle);
+            Rectangle workingArea = currentScreen.WorkingArea;
+            
+            // 检查录制区域是否靠近屏幕底部
+            bool isNearBottom = (workingArea.Bottom - borderRectangle.Bottom) < pInfo.Height + panelOffset * 2;
+            
             Location = borderRectangle.Location;
             int windowWidth = Math.Max(borderRectangle.Width, pInfo.Width);
-            Size = new Size(windowWidth, borderRectangle.Height + panelOffset + pInfo.Height);
-            pInfo.Location = new Point(0, borderRectangle.Height + panelOffset);
+            
+            if (isNearBottom)
+            {
+                // 如果靠近底部，将按钮面板放在录制区域上方
+                Size = new Size(windowWidth, borderRectangle.Height + panelOffset + pInfo.Height);
+                pInfo.Location = new Point(0, 0);
+                Location = new Point(Location.X, Location.Y - pInfo.Height - panelOffset);
+            }
+            else
+            {
+                // 正常情况，将按钮面板放在录制区域下方
+                Size = new Size(windowWidth, borderRectangle.Height + panelOffset + pInfo.Height);
+                pInfo.Location = new Point(0, borderRectangle.Height + panelOffset);
+            }
 
             Region region = new Region(ClientRectangle);
             region.Exclude(borderRectangle0Based.Offset(-1));
-            region.Exclude(new Rectangle(0, borderRectangle.Height, windowWidth, panelOffset));
+            
+            if (isNearBottom)
+            {
+                // 调整区域排除逻辑以适应按钮面板在上方的情况
+                region.Exclude(new Rectangle(0, pInfo.Height, windowWidth, panelOffset));
+            }
+            else
+            {
+                region.Exclude(new Rectangle(0, borderRectangle.Height, windowWidth, panelOffset));
+            }
+            
             if (borderRectangle.Width < pInfo.Width)
             {
-                region.Exclude(new Rectangle(borderRectangle.Width, 0, pInfo.Width - borderRectangle.Width, borderRectangle.Height));
+                region.Exclude(new Rectangle(borderRectangle.Width, isNearBottom ? pInfo.Height + panelOffset : 0, pInfo.Width - borderRectangle.Width, borderRectangle.Height));
             }
             else if (borderRectangle.Width > pInfo.Width)
             {
-                region.Exclude(new Rectangle(pInfo.Width, borderRectangle.Height + panelOffset, borderRectangle.Width - pInfo.Width, pInfo.Height));
+                region.Exclude(new Rectangle(pInfo.Width, isNearBottom ? 0 : borderRectangle.Height + panelOffset, borderRectangle.Width - pInfo.Width, pInfo.Height));
             }
             Region = region;
 
